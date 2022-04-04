@@ -1,0 +1,35 @@
+# vim: set shiftwidth=2 tabstop=4:
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.1.0
+  hooks:
+  - id: check-added-large-files
+  - id: check-executables-have-shebangs
+  - id: check-json
+  - id: check-toml
+  - id: check-yaml
+  - id: detect-private-key
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: trailing-whitespace
+-   repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+    -   id: cargo-check
+    -   id: fmt
+- repo: https://github.com/pre-commit/pygrep-hooks
+  rev: v1.9.0
+  hooks:
+  - id: rst-backticks
+  - id: rst-directive-colons
+  - id: rst-inline-touching-normal
+- repo: https://github.com/hadolint/hadolint
+  rev: v2.9.1
+  hooks:
+    - id: hadolint
+- repo: https://github.com/compilerla/conventional-pre-commit
+  rev: v1.2.0
+  hooks:
+    - id: conventional-pre-commit
+      stages: [commit-msg]
+      args: []
