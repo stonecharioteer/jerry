@@ -5,7 +5,7 @@ use mouse_rs::Mouse;
 use xrandr::{Monitor, XHandle, XrandrError};
 
 /// this function lists monitors
-fn list_monitors() -> Result<Vec<Monitor>, XrandrError> {
+pub fn list_monitors() -> Result<Vec<Monitor>, XrandrError> {
     let monitors = XHandle::open()?.monitors()?;
     return Ok(monitors);
 }
