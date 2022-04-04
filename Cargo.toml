@@ -1,0 +1,14 @@
+[package]
+name = "jerry"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mouse-rs = { git = "https://github.com/AltF02/mouse-rs", branch = "main"}
+xrandr = "0.1.1"
+log = "0.4.16"
+env_logger = "0.9.0"
+structopt = "0.3.26"
+clap = "3.1.8"
