@@ -8,6 +8,7 @@ use log::{debug, info};
 use mouse_rs::Mouse;
 use structopt::StructOpt;
 use xrandr::{Monitor, XHandle, XrandrError};
+
 /// Jerry is a tool that I wrote to help me move my mouse to a specific monitor when I'm using a
 /// tiling window manager on Linux. Qtile doesn't seem to move the mouse focus to a specific
 /// monitor when moving focus to a new monitor, that makes dmenu stick to the original monitor,
@@ -28,6 +29,7 @@ struct Opt {
     wrap_around: bool,
 }
 
+/// This is an enum to just hold the valid direction values
 #[derive(Debug)]
 enum Direction {
     Left,
@@ -36,6 +38,8 @@ enum Direction {
     Down,
 }
 
+// Implement the `from_str` function for the Direction enum so that the CLI can read the
+// input and build a Direction value from it.
 impl FromStr for Direction {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -113,11 +117,14 @@ fn move_in_direction(direction: &Direction, wrap_around: Option<bool>) {
     }
 }
 
+/// A geometrical point
 struct Point {
     pub x: i32,
     pub y: i32,
 }
 
+/// This is a trait that I'm implementing atop of the default xrandr monitor struct
+/// so I can use additional methods that are very particular to what I'm trying to do.
 trait CustomMonitor {
     fn contains_point(&self, x: i32, y: i32) -> bool;
     fn top_left(&self) -> Point;
@@ -127,6 +134,8 @@ trait CustomMonitor {
     fn bounding_box(&self) -> BoundingBox;
 }
 
+/// This struct provides the bounding box
+/// for a given monitor
 struct BoundingBox {
     top_left: Point,
     top_right: Point,
@@ -135,6 +144,7 @@ struct BoundingBox {
 }
 
 impl BoundingBox {
+    /// construct a bounding box for a given monitor
     fn new(m: &Monitor) -> Self {
         Self {
             top_left: m.top_left(),
@@ -155,30 +165,39 @@ impl CustomMonitor for Monitor {
         (x >= x0) && (x <= x1) && (y >= y0) && (y <= y1)
     }
 
+    /// get the top left corner
     fn top_left(&self) -> Point {
         Point {
             x: self.x,
             y: self.y,
         }
     }
+
+    /// get the top right corner
     fn top_right(&self) -> Point {
         Point {
             x: self.x + self.width_px,
             y: self.y,
         }
     }
+
+    /// get the bottom left corner
     fn bottom_left(&self) -> Point {
         Point {
             x: self.x,
             y: self.y + self.height_px,
         }
     }
+
+    /// get the bottom right corner
     fn bottom_right(&self) -> Point {
         Point {
             x: self.x + self.width_px,
             y: self.y + self.height_px,
         }
     }
+
+    /// get the bounding box for the monitor
     fn bounding_box(&self) -> BoundingBox {
         BoundingBox::new(&self)
     }
