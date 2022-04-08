@@ -19,6 +19,10 @@ struct Opt {
     #[structopt(short, long)]
     direction: Option<Direction>,
 
+    /// Move the mouse in a nice spiral
+    #[structopt(short, long)]
+    animate_mouse: bool,
+
     #[structopt(short, long)]
     wrap_around: bool,
 }

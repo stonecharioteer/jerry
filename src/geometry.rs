@@ -1,11 +1,42 @@
 //! module to hold all the geometrical functions and definitions
-use std::str::FromStr;
+use std::{f32::consts::PI, str::FromStr};
 /// A geometrical point
+#[derive(Debug)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
 }
 
+impl Point {
+    pub fn generate_spiral(&self, arc: Option<u8>, separation: Option<u8>) -> Vec<Point> {
+        let mut points: Vec<Point> = vec![];
+        let arc = match arc {
+            Some(v) => v,
+            None => 2,
+        };
+        let separation = match separation {
+            Some(v) => v,
+            None => 2,
+        };
+
+        let mut r = arc as f32;
+        let b: f32 = separation as f32 / (2.0 * PI);
+        let mut phi = r as f32 / b;
+        for _ in 1..100 {
+            points.push(Point {
+                x: r as i32,
+                y: phi as i32,
+            });
+            phi = phi + (arc as f32 / r as f32);
+            r = b * phi;
+        }
+        points
+    }
+
+    fn polar_to_cartesian(radius: u16, phi: f32) -> (f32, f32) {
+        (radius as f32 * PI.cos(), radius as f32 * PI.sin())
+    }
+}
 /// This is an enum to just hold the valid direction values
 #[derive(Debug)]
 pub enum Direction {

@@ -1,5 +1,6 @@
-use crate::geometry::{Direction, Rectangle};
+use crate::geometry::{Direction, Point, Rectangle};
 use crate::monitor::structs::CustomMonitor;
+use crate::mouse::animate_mouse;
 use log::{debug, info};
 use mouse_rs::Mouse;
 use xrandr::{Monitor, XHandle, XrandrError};
@@ -32,7 +33,11 @@ pub fn move_to_monitor(required_monitor: String) -> Result<(), clap::Error> {
         let mouse = Mouse::new();
         let (x, y) = ((x1 + x0) / 2, (y1 + y0) / 2);
         info!("Moving Mouse, {x}, {y}!");
+        _ = mouse.move_to(x + 10, y + 10);
+        _ = mouse.move_to(x - 10, y - 10);
         _ = mouse.move_to(x, y);
+        _ = mouse.wheel(1);
+        _ = mouse.wheel(-1);
         Ok(())
     } else {
         Err(clap::Error::raw(
