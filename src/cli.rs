@@ -1,12 +1,9 @@
 use crate::geometry::Direction;
 use crate::monitor::utils;
-use log::{debug, info};
+use log::info;
 use structopt::StructOpt;
 
-/// Jerry is a tool that I wrote to help me move my mouse to a specific monitor when I'm using a
-/// tiling window manager on Linux. Qtile doesn't seem to move the mouse focus to a specific
-/// monitor when moving focus to a new monitor, that makes dmenu stick to the original monitor,
-/// which is rather annoying.
+/// Jerry moves your mouse pointer to a specific monitor or in a direction across monitors.
 #[derive(Debug, StructOpt)]
 #[allow(dead_code)]
 struct Opt {
@@ -19,9 +16,13 @@ struct Opt {
     #[structopt(short, long)]
     direction: Option<Direction>,
 
-    /// Move the mouse in a nice spiral
+    /// Jiggle the pointer around the target point before final placement.
     #[structopt(short, long)]
     animate_mouse: bool,
+
+    /// Scroll down and up once after moving the pointer.
+    #[structopt(short = "s", long)]
+    scroll_wheel: bool,
 
     #[structopt(short, long)]
     wrap_around: bool,
@@ -29,10 +30,15 @@ struct Opt {
 
 pub fn cli() {
     let opt = Opt::from_args();
-    let monitor = utils::which_monitor_is_mouse_in().unwrap();
-    let monitor_name = &monitor.name;
+    let effects = utils::PointerEffects {
+        jiggle: opt.animate_mouse,
+        scroll: opt.scroll_wheel,
+    };
+    let monitor_name = match utils::current_monitor_name() {
+        Ok(name) => name,
+        Err(e) => e.exit(),
+    };
     info!("Mouse is currently in {monitor_name}");
-    debug!("current monitor = {monitor:?}");
     match (&opt.monitor, &opt.direction) {
         (None, None) => {
             clap::Error::raw(
@@ -45,7 +51,7 @@ pub fn cli() {
         // TODO : move all the clap::Error calls here instead of within the functions
         (Some(monitor), None) => {
             info!("Attempting to move to monitor: {monitor}");
-            let res = utils::move_to_monitor(monitor.to_owned());
+            let res = utils::move_to_monitor(monitor.to_owned(), effects);
             match res {
                 Ok(_) => return,
                 Err(e) => e.exit(),
@@ -53,7 +59,7 @@ pub fn cli() {
         }
         (None, Some(direction)) => {
             info!("Attempting to move in direction: {direction:?}");
-            let res = utils::move_in_direction(&direction, Some(opt.wrap_around));
+            let res = utils::move_in_direction(&direction, Some(opt.wrap_around), effects);
             match res {
                 Ok(_) => return,
                 Err(e) => e.exit(),
