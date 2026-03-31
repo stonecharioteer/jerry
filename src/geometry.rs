@@ -32,13 +32,9 @@ impl Point {
         }
         points
     }
-
-    fn polar_to_cartesian(radius: u16, phi: f32) -> (f32, f32) {
-        (radius as f32 * PI.cos(), radius as f32 * PI.sin())
-    }
 }
 /// This is an enum to just hold the valid direction values
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     Left,
     Right,
@@ -65,10 +61,10 @@ impl FromStr for Direction {
 /// This struct provides the bounding box
 /// for a given monitor
 pub struct BoundingBox {
-    top_left: Point,
-    top_right: Point,
-    bottom_left: Point,
-    bottom_right: Point,
+    pub top_left: Point,
+    pub top_right: Point,
+    pub bottom_left: Point,
+    pub bottom_right: Point,
 }
 
 impl BoundingBox {

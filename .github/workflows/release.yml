@@ -1,51 +1,120 @@
+name: Build and Release
+
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
 
-name: Build and Release
-
 jobs:
-  create_release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url}}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-  upload_release:
-    name: Upload Release Asset
-    needs: create_release
+  ensure-release:
+    name: Ensure Release Exists
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: install libxrandr-dev and libxdo-dev
-        run: sudo apt-get install -y libxrandr-dev libxdo-dev
-      - name: Cargo Check
-        run: cargo check --quiet
-      - name: Build
-        run: cargo build --release --quiet
-      - name: Upload Release Asset
-        id: upload-release-asset-ubuntu
-        uses: actions/upload-release-asset@v1
+      - name: Ensure release exists for tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./target/release/jerry
-          asset_name: jerry-linux64
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          gh release view "${tag}" >/dev/null 2>&1 || \
+            gh release create "${tag}" --title "Release ${tag}" --generate-notes
+
+  build-and-upload:
+    name: Build and Upload (${{ matrix.os }})
+    needs: ensure-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxrandr-dev libxdo-dev
+
+      - name: Build release binary
+        shell: bash
+        run: cargo build --release --locked --quiet
+
+      - name: Package asset
+        id: package
+        shell: bash
+        run: |
+          os="$(echo "${RUNNER_OS}" | tr '[:upper:]' '[:lower:]')"
+          arch="$(echo "${RUNNER_ARCH}" | tr '[:upper:]' '[:lower:]')"
+
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            bin="target/release/jerry.exe"
+            ext=".exe"
+          else
+            bin="target/release/jerry"
+            ext=""
+          fi
+
+          asset="jerry-${os}-${arch}${ext}"
+          cp "${bin}" "${asset}"
+
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${asset}" > "${asset}.sha256"
+          else
+            shasum -a 256 "${asset}" > "${asset}.sha256"
+          fi
+
+          echo "asset=${asset}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install cosign
+        id: cosign
+        shell: bash
+        run: |
+          version="v2.4.1"
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) bin="cosign-linux-amd64" ;;
+            Linux-ARM64) bin="cosign-linux-arm64" ;;
+            macOS-X64) bin="cosign-darwin-amd64" ;;
+            macOS-ARM64) bin="cosign-darwin-arm64" ;;
+            Windows-X64) bin="cosign-windows-amd64.exe" ;;
+            Windows-ARM64) bin="cosign-windows-arm64.exe" ;;
+            *)
+              echo "Unsupported runner platform ${RUNNER_OS}-${RUNNER_ARCH}"
+              exit 1
+              ;;
+          esac
+
+          cosign_path="${PWD}/cosign"
+          if [[ "${bin}" == *.exe ]]; then
+            cosign_path="${cosign_path}.exe"
+          fi
+
+          curl -fsSL -o "${cosign_path}" "https://github.com/sigstore/cosign/releases/download/${version}/${bin}"
+          chmod +x "${cosign_path}" || true
+          echo "path=${cosign_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: Sign release asset
+        shell: bash
+        run: |
+          asset="${{ steps.package.outputs.asset }}"
+          "${{ steps.cosign.outputs.path }}" sign-blob --yes \
+            --output-signature "${asset}.sig" \
+            --output-certificate "${asset}.pem" \
+            "${asset}"
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          asset="${{ steps.package.outputs.asset }}"
+          gh release upload "${GITHUB_REF_NAME}" \
+            "${asset}" \
+            "${asset}.sha256" \
+            "${asset}.sig" \
+            "${asset}.pem" \
+            --clobber

@@ -6,17 +6,26 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-    - uses: actions/checkout@v3
-    - name: install libxrandr-dev and libxdo-dev
-      run: sudo apt-get install -y libxrandr-dev libxdo-dev
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    - name: Install Linux system dependencies
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y libxrandr-dev libxdo-dev
     - name: Check Syntax
-      run: cargo check --quiet
+      run: cargo check --locked --quiet
     - name: Run tests
-      run: cargo test
+      run: cargo test --locked --quiet
